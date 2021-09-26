@@ -1,6 +1,7 @@
 package com.example.springreddit.service;
 
 import com.example.springreddit.controller.dto.RegisterRequest;
+import com.example.springreddit.exceptions.SpringRedditException;
 import com.example.springreddit.model.NotificationEmail;
 import com.example.springreddit.model.User;
 import com.example.springreddit.model.VerificationToken;
@@ -8,10 +9,12 @@ import com.example.springreddit.repository.UserRepository;
 import com.example.springreddit.repository.VerificationTokenRepository;
 import lombok.AllArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Repository;
 import org.springframework.stereotype.Service;
 
 import javax.transaction.Transactional;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -51,5 +54,19 @@ public class AuthService {
 
         verificationTokenRepository.save(verificationToken);
         return token;
+    }
+
+    public void verifyAccount(String token){
+        Optional<VerificationToken> verificationToken = verificationTokenRepository.findByToken(token);
+        verificationToken.orElseThrow(() -> new SpringRedditException("Invalid Token"));
+        fetchUserAndEnable(verificationToken.get());
+    }
+
+    @Transactional
+    private void fetchUserAndEnable(VerificationToken verificationToken) {
+        String username = verificationToken.getUser().getUsername();
+        User user = userRepository.findByUsername(username).orElseThrow(() -> new SpringRedditException("User not found with name - " + username));
+        user.setEnabled(true);
+        userRepository.save(user);
     }
 }
